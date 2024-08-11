@@ -3,7 +3,7 @@
 #[derive(Debug)]
 pub struct Torrent {
     pub(crate) announce: String,
-    pub(crate) info: Info,
+    info: Info,
 }
 
 impl Torrent {
