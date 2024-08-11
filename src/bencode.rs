@@ -1,4 +1,4 @@
-use serde_json::{Number, Value, json};
+use serde_json::{json, Number, Value};
 
 pub(crate) fn decode(encoded_value: &str) -> Value {
     let mut borrow_encoded = encoded_value;
@@ -22,12 +22,38 @@ fn decode_bencoded_value(encoded_value: &mut &str) -> Value {
         Some('d') if encoded_value.ends_with('e') => {
             // dictionary
             *encoded_value = &encoded_value[1..]; // Consume the 'd'
-            Value::Array(decode_benencoded_dictionary(encoded_value))
+            let mut map = serde_json::Map::new();
+
+            while !encoded_value.starts_with("e") {
+                if encoded_value.is_empty() {
+                    panic!("Unexpected end of encoded value while parsing dictionary");
+                }
+                let k = decode_bencoded_value(encoded_value);
+                if let Value::String(key) = k {
+                    let v = decode_bencoded_value(encoded_value);
+                    map.insert(key, v);
+                } else {
+                    panic!("JSON only supports keys of type string")
+                }
+            }
+            *encoded_value = &encoded_value[1..]; // consume ending 'e'
+
+           Value::Object(map)
         }
         Some('l') if encoded_value.ends_with('e') => {
             // list
             *encoded_value = &encoded_value[1..]; // Consume the 'l'
-            Value::Array(decode_benencoded_list(encoded_value))
+            let mut elements = Vec::new();
+
+            while !encoded_value.starts_with('e') {
+                if encoded_value.is_empty() {
+                    panic!("Unexpected end of encoded value while parsing list");
+                }
+                let element = decode_bencoded_value(encoded_value);
+                elements.push(element);
+            }
+            *encoded_value = &encoded_value[1..];
+            Value::Array(elements)
         }
         Some(c) if c.is_digit(10) => {
             // string
@@ -51,33 +77,6 @@ fn decode_bencoded_value(encoded_value: &mut &str) -> Value {
             }
         }
     }
-}
-
-fn decode_benencoded_dictionary(_encoded_value: &mut &str) -> Vec<Value> {
-    todo!()
-}
-
-fn decode_benencoded_list(encoded_value: &mut &str) -> Vec<Value> {
-    let mut elements = Vec::new();
-
-    while !encoded_value.starts_with('e') {
-        if encoded_value.is_empty() {
-            panic!("Unexpected end of encoded value while parsing list");
-        }
-
-        // Parse the next element recursively
-        let element = decode_bencoded_value(encoded_value);
-        // println!("Current resolved encoded_value: {}", element);
-
-        elements.push(element);
-
-        // println!("Remaining encoded_value: {}", encoded_value);
-    }
-
-    // Consume the 'e' at the end of the list
-    *encoded_value = &encoded_value[1..];
-
-    elements
 }
 
 #[cfg(test)]
@@ -113,6 +112,15 @@ mod tests {
         let mut encoded_value = "l5:helloi52ee";
         let result = decode_bencoded_value(&mut encoded_value);
         let expected = json!(["hello", 52]);
+        assert_eq!(result, expected);
+        assert_eq!(encoded_value, ""); // Ensure all input was consumed
+    }
+
+    #[test]
+    fn test_dictionary() {
+        let mut encoded_value = "d3:foo3:bar5:helloi52ee";
+        let result = decode_bencoded_value(&mut encoded_value);
+        let expected = json!({"foo":"bar","hello":52});
         assert_eq!(result, expected);
         assert_eq!(encoded_value, ""); // Ensure all input was consumed
     }
