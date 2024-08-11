@@ -19,6 +19,23 @@ fn main() {
             println!("Tracker URL: {}", torrent.announce.to_string());
             println!("Length: {}", torrent.length().to_string());
         },
+        "peers" => {
+            todo!()
+        },
+        "handshake" => {
+            todo!()
+        },
+        "announce" => {
+            todo!()
+        },
+        "download_piece" => {
+            todo!()
+        },
+        "download" => {
+            let file_name = args[2].as_str();
+            println!("Downloading file {file_name}");
+            todo!()
+        }
         _ => {
             println!("unknown command: {}", args[1]);
         }
